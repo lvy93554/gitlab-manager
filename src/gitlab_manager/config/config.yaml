@@ -1,0 +1,69 @@
+# GitLab Manager 主配置文件
+apiVersion: gitlab-manager/v1
+kind: GitlabManagerConfig
+
+
+# 全局配置
+global:
+  - time_zone: 'Asia/Shanghai'
+
+
+# 默认配置
+default:
+  gitlab:
+    url: "your_gitlab_url"
+    token_env: "GITLAB_TOKEN_ENV"
+    # e.g: https://git.xoo.xo/api/v4/groups/
+    group_api: "your gitlab group api"
+    # e.g: https://git.xoo.xo/api/v4/projects/
+    project_api: "your gitlab project api"
+    api_version: v4
+    timeout: 30
+    retries: 3
+
+
+# 多环境配置
+#############################################
+# 国内互联网常见环境规范: dev->test->pre->prod  #
+# 金融/银行/政企常见: dev->sit->uat->prod      #
+# SIT: 系统集成测试                           #
+# UAT: 用户验收测试                           #
+#############################################
+environments:
+  # 测试环境(对应gitlab feature开头分支)
+  sit:
+    gitlab:
+      url: "your_gitlab_url"
+      # 从环境变量中读取
+      token_env: "GITLAB_TOKEN_ENV"
+  # 开发环境(对应gitlab dev开头分支)
+  perf:
+    gitlab:
+      url: "your_gitlab_url"
+      # 从环境变量中读取
+      token_env: "GITLAB_TOKEN_ENV"
+  # 预生产环境,也可以写成 uat/staging(通常对应gitlab master或者main开头分支)
+  pre:
+    gitlab:
+      url: "your_gitlab_url"
+      # 从环境变量中读取
+      token_env: "GITLAB_TOKEN_ENV"
+  # 生产环境。(通常可能会直接从 pre 环境获取镜像发布服务,也对应master或者main开头分支)
+  prod:
+    gitlab:
+      url: "your_gitlab_url"
+      # 从环境变量中读取
+      token_env: "GITLAB_TOKEN_ENV"
+
+
+# GitLab 组(子组)、项目、成员相关配置
+##################################################
+# 顶级组禁止使用API进行操作,主要防止误操作带来毁灭性影响  #
+##################################################
+
+
+
+# 日志相关配置
+logging:
+  default_level: "INFO"
+  default_log_file: "logs/gitlab_manager.log"
