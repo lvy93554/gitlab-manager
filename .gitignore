@@ -1,2 +1,12 @@
 .history
 *-venv
+
+# 不提交敏感信息
+.env
+.env.local
+config/config.yaml
+
+# 提交示例文件
+!.env.example
+!.env.*.example
+!config.example.yaml
