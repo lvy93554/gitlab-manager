@@ -1,14 +1,46 @@
-# GitLab Manager 主配置文件
+# ============================================================================
+# GitLab Manager 配置文件
+# ============================================================================
+#
+# 说明:
+#   1. 本配置文件采用"完整配置"风格,每个项目都明确定义所有属性
+#   2. 支持幂等性:多次运行只同步变化的部分,已有配置保持不变
+#   3. 适配 Kubernetes 部署:可通过 ConfigMap 或 Secret 挂载
+#   4. 配置变更检测:程序会自动识别配置文件的变化并仅更新差异
+#
+# 使用场景:
+#   - 不同项目需要不同的成员配置
+#   - 不同项目需要不同的可见性设置
+#   - 需要精确控制每个项目的权限
+#   - 团队结构复杂,项目职责清晰
+#
+# ============================================================================
 apiVersion: gitlab-manager/v1
 kind: GitlabManagerConfig
 
 
-# 全局配置
+# ----------------------------------------------------------------------------
+# GitLab 全局配置
+# ----------------------------------------------------------------------------
 global:
   - time_zone: 'Asia/Shanghai'
 
 
-# 默认配置
+# ----------------------------------------------------------------------------
+# GitLab 服务器默认配置
+# ----------------------------------------------------------------------------
+# 
+# 注意事项:
+#   - url: GitLab 服务器地址(必填)
+#   - private_token: 个人访问令牌(必填,需要 api 权限)
+#   - 在 Kubernetes 中建议使用 Secret 存储 private_token
+#
+# 获取 private_token:
+#   1. 登录 GitLab
+#   2. 进入 Settings -> Access Tokens
+#   3. 创建令牌,勾选 'api' 权限
+#   4. 复制生成的令牌到此处
+#
 default:
   gitlab:
     url: "your_gitlab_url"
@@ -60,10 +92,622 @@ environments:
 ######################################################
 # 顶级组禁止使用API进行操作,主要防止误操作带来毁灭性影响  #
 ######################################################
+# ----------------------------------------------------------------------------
+# 顶级组配置
+# ----------------------------------------------------------------------------
+#
+# 重要说明:
+#   - 顶级组必须由 GitLab 管理员手动创建
+#   - 本工具不创建顶级组,只管理顶级组下的资源
+#   - 确保运行账号对顶级组有足够权限(至少 Maintainer)
+#
+# 配置规则:
+#   - 每个顶级组都是一个独立的配置块
+#   - 可以配置多个顶级组
+#   - 每个顶级组可以包含:项目、子组、成员
+#
+top_groups:
+  
+  # ==========================================================================
+  # 顶级组 1: 工程研发团队
+  # ==========================================================================
+  #
+  # 说明:
+  #   - 工程研发团队的所有项目和子团队
+  #   - 采用完整配置风格,每个项目独立定义
+  #   - 不同项目有不同的成员和可见性需求
+  #
+  - name: "engineering"                    # 顶级组名称(必须已在 GitLab 中存在)
+    visibility: "private"                  # 顶级组可见性: private, internal, public
+    
+    # ------------------------------------------------------------------------
+    # 顶级组成员配置
+    # ------------------------------------------------------------------------
+    #
+    # 说明:
+    #   - 这里配置的成员将拥有整个顶级组的访问权限
+    #   - 顶级组成员可以访问该组下的所有子组和项目(取决于 GitLab 设置)
+    #   - 建议只添加团队负责人和技术管理者
+    #
+    # 权限级别说明:
+    #   - owner:      所有者,完全控制权限,可以删除组
+    #   - maintainer: 维护者,可以管理项目、成员、设置
+    #   - developer:  开发者,可以推送代码、创建分支
+    #   - reporter:   报告者,只读权限,可以下载代码
+    #   - guest:      访客,只能查看和评论
+    #
+    members:
+      - username: "tech-director"          # GitLab 用户名
+        access_level: "owner"              # 权限级别
+      
+      - username: "engineering-manager"
+        access_level: "maintainer"
+      
+      - username: "tech-lead"
+        access_level: "maintainer"
+    
+    # ------------------------------------------------------------------------
+    # 顶级组下的项目
+    # ------------------------------------------------------------------------
+    #
+    # 说明:
+    #   - 直接在顶级组下创建的项目
+    #   - 通常是核心基础项目、公共库等
+    #   - 每个项目都完整定义所有属性
+    #
+    projects:
+      # ----------------------------------------------------------------------
+      # 项目 1: 后端 API 服务
+      # ----------------------------------------------------------------------
+      - name: "backend-api"                # 项目名称(必填)
+        description: "核心后端 API 服务"   # 项目描述
+        visibility: "private"              # 项目可见性
+        
+        # 项目成员配置
+        # 说明:
+        #   - 这些成员专门针对此项目
+        #   - 如果用户已是顶级组成员,这里的配置会覆盖
+        #   - 项目负责人通常设置为 maintainer
+        members:
+          - username: "backend-lead"       # 后端负责人
+            access_level: "maintainer"
+          
+          - username: "senior-backend-dev1"
+            access_level: "developer"
+          
+          - username: "senior-backend-dev2"
+            access_level: "developer"
+          
+          - username: "backend-dev1"
+            access_level: "developer"
+          
+          - username: "qa-engineer1"       # QA 通常是 reporter
+            access_level: "reporter"
+      
+      # ----------------------------------------------------------------------
+      # 项目 2: 前端 API 服务
+      # ----------------------------------------------------------------------
+      - name: "frontend-api"
+        description: "前端 API 网关服务"
+        visibility: "private"
+        
+        members:
+          - username: "frontend-lead"
+            access_level: "maintainer"
+          
+          - username: "frontend-dev1"
+            access_level: "developer"
+          
+          - username: "frontend-dev2"
+            access_level: "developer"
+      
+      # ----------------------------------------------------------------------
+      # 项目 3: 公共工具库
+      # ----------------------------------------------------------------------
+      - name: "common-library"
+        description: "公共工具库和组件"
+        visibility: "internal"             # 内部可见,方便其他团队使用
+        
+        members:
+          - username: "library-maintainer"
+            access_level: "maintainer"
+          
+          - username: "senior-backend-dev1"
+            access_level: "developer"
+          
+          - username: "senior-frontend-dev1"
+            access_level: "developer"
+    
+    # ------------------------------------------------------------------------
+    # 子组配置
+    # ------------------------------------------------------------------------
+    #
+    # 说明:
+    #   - 子组用于组织不同的团队或业务线
+    #   - 每个子组可以有自己的成员和项目
+    #   - 子组可以有独立的权限控制
+    #
+    subgroups:
+      
+      # ======================================================================
+      # 子组 1: 前端开发团队
+      # ======================================================================
+      - name: "frontend"                   # 子组名称
+        path: "frontend"                   # URL 路径(通常与名称相同)
+        description: "前端开发团队"
+        visibility: "private"
+        
+        # 子组成员
+        # 说明:
+        #   - 这些成员可以访问子组下的所有项目
+        #   - 如果项目有特殊需求,可以在项目级别单独配置
+        members:
+          - username: "frontend-team-lead"
+            access_level: "maintainer"
+          
+          - username: "frontend-architect"
+            access_level: "maintainer"
+          
+          - username: "senior-frontend-dev1"
+            access_level: "developer"
+        
+        # 子组下的项目
+        projects:
+          # ----------------------------------------------------------------
+          # 前端项目 1: Web 应用
+          # ----------------------------------------------------------------
+          - name: "web-app"
+            description: "主要 Web 应用(React)"
+            visibility: "private"
+            
+            members:
+              - username: "web-dev-lead"
+                access_level: "maintainer"
+              
+              - username: "web-dev1"
+                access_level: "developer"
+              
+              - username: "web-dev2"
+                access_level: "developer"
+              
+              - username: "web-dev3"
+                access_level: "developer"
+              
+              - username: "ui-designer"      # 设计师通常是 reporter
+                access_level: "reporter"
+          
+          # ----------------------------------------------------------------
+          # 前端项目 2: 移动应用
+          # ----------------------------------------------------------------
+          - name: "mobile-app"
+            description: "移动端应用(iOS/Android)"
+            visibility: "private"
+            
+            members:
+              - username: "mobile-lead"
+                access_level: "maintainer"
+              
+              - username: "ios-developer"
+                access_level: "developer"
+              
+              - username: "android-developer"
+                access_level: "developer"
+              
+              - username: "mobile-qa"
+                access_level: "reporter"
+          
+          # ----------------------------------------------------------------
+          # 前端项目 3: 管理后台
+          # ----------------------------------------------------------------
+          - name: "admin-panel"
+            description: "内部管理后台"
+            visibility: "internal"           # 内部可见
+            
+            members:
+              - username: "admin-dev"
+                access_level: "maintainer"
+              
+              - username: "web-dev1"
+                access_level: "developer"
+              
+              - username: "product-manager"  # 产品经理可以查看
+                access_level: "reporter"
+      
+      # ======================================================================
+      # 子组 2: 后端开发团队
+      # ======================================================================
+      - name: "backend"
+        path: "backend"
+        description: "后端微服务团队"
+        visibility: "private"
+        
+        members:
+          - username: "backend-team-lead"
+            access_level: "maintainer"
+          
+          - username: "backend-architect"
+            access_level: "maintainer"
+          
+          - username: "devops-engineer"     # DevOps 需要访问后端服务
+            access_level: "developer"
+        
+        projects:
+          # ----------------------------------------------------------------
+          # 后端项目 1: 用户服务
+          # ----------------------------------------------------------------
+          - name: "user-service"
+            description: "用户认证和授权服务"
+            visibility: "private"
+            
+            members:
+              - username: "user-service-owner"
+                access_level: "maintainer"
+              
+              - username: "backend-dev1"
+                access_level: "developer"
+              
+              - username: "backend-dev2"
+                access_level: "developer"
+              
+              - username: "security-engineer" # 安全工程师
+                access_level: "developer"
+          
+          # ----------------------------------------------------------------
+          # 后端项目 2: 订单服务
+          # ----------------------------------------------------------------
+          - name: "order-service"
+            description: "订单处理和管理服务"
+            visibility: "private"
+            
+            members:
+              - username: "order-service-owner"
+                access_level: "maintainer"
+              
+              - username: "backend-dev3"
+                access_level: "developer"
+              
+              - username: "backend-dev4"
+                access_level: "developer"
+          
+          # ----------------------------------------------------------------
+          # 后端项目 3: 支付服务
+          # ----------------------------------------------------------------
+          - name: "payment-service"
+            description: "支付网关和财务服务(高安全)"
+            visibility: "private"            # 敏感项目,严格控制访问
+            
+            members:
+              - username: "payment-service-owner"
+                access_level: "maintainer"
+              
+              - username: "payment-dev"
+                access_level: "developer"
+              
+              - username: "security-engineer"
+                access_level: "developer"
+              
+              - username: "financial-auditor"  # 财务审计
+                access_level: "reporter"
+          
+          # ----------------------------------------------------------------
+          # 后端项目 4: 通知服务
+          # ----------------------------------------------------------------
+          - name: "notification-service"
+            description: "消息通知服务(邮件/短信/推送)"
+            visibility: "private"
+            
+            members:
+              - username: "notification-owner"
+                access_level: "maintainer"
+              
+              - username: "backend-dev5"
+                access_level: "developer"
+      
+      # ======================================================================
+      # 子组 3: DevOps 团队
+      # ======================================================================
+      - name: "devops"
+        path: "devops"
+        description: "DevOps 和基础设施团队"
+        visibility: "private"
+        
+        members:
+          - username: "devops-lead"
+            access_level: "maintainer"
+          
+          - username: "sre-engineer1"
+            access_level: "developer"
+          
+          - username: "sre-engineer2"
+            access_level: "developer"
+        
+        projects:
+          # ----------------------------------------------------------------
+          # DevOps 项目 1: 基础设施即代码
+          # ----------------------------------------------------------------
+          - name: "infrastructure"
+            description: "Terraform/Ansible 基础设施代码"
+            visibility: "private"
+            
+            members:
+              - username: "infrastructure-lead"
+                access_level: "maintainer"
+              
+              - username: "devops-engineer1"
+                access_level: "developer"
+              
+              - username: "devops-engineer2"
+                access_level: "developer"
+          
+          # ----------------------------------------------------------------
+          # DevOps 项目 2: CI/CD 配置
+          # ----------------------------------------------------------------
+          - name: "ci-cd-configs"
+            description: "CI/CD 流水线配置和模板"
+            visibility: "internal"           # 内部可见,方便其他团队参考
+            
+            members:
+              - username: "cicd-expert"
+                access_level: "maintainer"
+              
+              - username: "devops-engineer1"
+                access_level: "developer"
+          
+          # ----------------------------------------------------------------
+          # DevOps 项目 3: 监控配置
+          # ----------------------------------------------------------------
+          - name: "monitoring-configs"
+            description: "Prometheus/Grafana 监控配置"
+            visibility: "private"
+            
+            members:
+              - username: "monitoring-expert"
+                access_level: "maintainer"
+              
+              - username: "sre-engineer1"
+                access_level: "developer"
+              
+              - username: "sre-engineer2"
+                access_level: "developer"
+      
+      # ======================================================================
+      # 子组 4: 测试团队
+      # ======================================================================
+      - name: "qa"
+        path: "qa"
+        description: "质量保证和测试团队"
+        visibility: "private"
+        
+        members:
+          - username: "qa-lead"
+            access_level: "maintainer"
+          
+          - username: "test-architect"
+            access_level: "developer"
+        
+        projects:
+          # ----------------------------------------------------------------
+          # QA 项目 1: 自动化测试
+          # ----------------------------------------------------------------
+          - name: "automation-tests"
+            description: "端到端自动化测试"
+            visibility: "private"
+            
+            members:
+              - username: "automation-lead"
+                access_level: "maintainer"
+              
+              - username: "qa-engineer1"
+                access_level: "developer"
+              
+              - username: "qa-engineer2"
+                access_level: "developer"
+          
+          # ----------------------------------------------------------------
+          # QA 项目 2: 性能测试
+          # ----------------------------------------------------------------
+          - name: "performance-tests"
+            description: "性能和压力测试"
+            visibility: "private"
+            
+            members:
+              - username: "perf-test-lead"
+                access_level: "maintainer"
+              
+              - username: "qa-engineer3"
+                access_level: "developer"
+
+  # ==========================================================================
+  # 顶级组 2: 运维团队
+  # ==========================================================================
+  - name: "operations"
+    visibility: "private"
+    
+    members:
+      - username: "operations-director"
+        access_level: "owner"
+      
+      - username: "operations-manager"
+        access_level: "maintainer"
+    
+    projects:
+      # ----------------------------------------------------------------------
+      # 运维项目 1: 监控系统
+      # ----------------------------------------------------------------------
+      - name: "monitoring"
+        description: "生产环境监控系统"
+        visibility: "private"
+        
+        members:
+          - username: "monitoring-lead"
+            access_level: "maintainer"
+          
+          - username: "ops-engineer1"
+            access_level: "developer"
+          
+          - username: "ops-engineer2"
+            access_level: "developer"
+      
+      # ----------------------------------------------------------------------
+      # 运维项目 2: 日志系统
+      # ----------------------------------------------------------------------
+      - name: "logging"
+        description: "集中式日志管理"
+        visibility: "private"
+        
+        members:
+          - username: "logging-expert"
+            access_level: "maintainer"
+          
+          - username: "ops-engineer1"
+            access_level: "developer"
+    
+    subgroups:
+      # ======================================================================
+      # 运维子组: 数据库管理
+      # ======================================================================
+      - name: "database"
+        path: "database"
+        description: "数据库管理和维护"
+        visibility: "private"
+        
+        members:
+          - username: "dba-lead"
+            access_level: "maintainer"
+          
+          - username: "dba1"
+            access_level: "developer"
+          
+          - username: "dba2"
+            access_level: "developer"
+        
+        projects:
+          # ----------------------------------------------------------------
+          # 数据库项目 1: MySQL 脚本
+          # ----------------------------------------------------------------
+          - name: "mysql-scripts"
+            description: "MySQL 数据库脚本和配置"
+            visibility: "private"
+            
+            members:
+              - username: "mysql-expert"
+                access_level: "maintainer"
+              
+              - username: "dba1"
+                access_level: "developer"
+          
+          # ----------------------------------------------------------------
+          # 数据库项目 2: PostgreSQL 脚本
+          # ----------------------------------------------------------------
+          - name: "postgresql-scripts"
+            description: "PostgreSQL 数据库脚本"
+            visibility: "private"
+            
+            members:
+              - username: "postgres-expert"
+                access_level: "maintainer"
+              
+              - username: "dba2"
+                access_level: "developer"
+          
+          # ----------------------------------------------------------------
+          # 数据库项目 3: Redis 配置
+          # ----------------------------------------------------------------
+          - name: "redis-configs"
+            description: "Redis 缓存配置和脚本"
+            visibility: "private"
+            
+            members:
+              - username: "cache-expert"
+                access_level: "maintainer"
+              
+              - username: "dba1"
+                access_level: "developer"
+
+  # ==========================================================================
+  # 顶级组 3: 产品团队
+  # ==========================================================================
+  - name: "product"
+    visibility: "internal"                 # 内部可见,方便跨团队协作
+    
+    members:
+      - username: "product-director"
+        access_level: "owner"
+      
+      - username: "product-manager1"
+        access_level: "maintainer"
+      
+      - username: "product-manager2"
+        access_level: "maintainer"
+    
+    projects:
+      # ----------------------------------------------------------------------
+      # 产品项目 1: 需求文档
+      # ----------------------------------------------------------------------
+      - name: "requirements"
+        description: "产品需求文档(PRD)"
+        visibility: "internal"
+        
+        members:
+          - username: "product-manager1"
+            access_level: "maintainer"
+          
+          - username: "product-manager2"
+            access_level: "maintainer"
+          
+          - username: "tech-lead"            # 技术负责人可以查看
+            access_level: "reporter"
+          
+          - username: "ui-designer"
+            access_level: "reporter"
+      
+      # ----------------------------------------------------------------------
+      # 产品项目 2: 设计资源
+      # ----------------------------------------------------------------------
+      - name: "design-assets"
+        description: "UI/UX 设计资源"
+        visibility: "internal"
+        
+        members:
+          - username: "design-lead"
+            access_level: "maintainer"
+          
+          - username: "ui-designer"
+            access_level: "developer"
+          
+          - username: "ux-designer"
+            access_level: "developer"
+          
+          - username: "frontend-team-lead"   # 前端团队可以查看
+            access_level: "reporter"
+      
+      # ----------------------------------------------------------------------
+      # 产品项目 3: 用户研究
+      # ----------------------------------------------------------------------
+      - name: "user-research"
+        description: "用户调研和分析报告"
+        visibility: "internal"
+        
+        members:
+          - username: "ux-researcher"
+            access_level: "maintainer"
+          
+          - username: "product-manager1"
+            access_level: "developer"
+          
+          - username: "data-analyst"
+            access_level: "developer"
 
 
-
-# 日志相关配置
+# ----------------------------------------------------------------------------
+# 日志配置
+# ----------------------------------------------------------------------------
+#
+# 说明:
+#   - level: 日志级别,建议生产环境使用 INFO
+#   - file: 日志文件路径
+#   - console: 是否输出到控制台(Kubernetes 中建议 true)
+#
 logging:
   # DEBUG, INFO, WARNING, ERROR, CRITICAL
   default_level: "INFO"
@@ -71,3 +715,29 @@ logging:
   default_log_file: "logs/gitlab_manager.log"
   # 输出到控制台(方便 kubectl logs 查看)
   console: true
+
+
+# ============================================================================
+# 配置文件使用说明
+# ============================================================================
+#
+# 1. 首次使用:
+#    - 复制本文件为 config.yaml
+#    - 修改 gitlab.url 和 gitlab.private_token
+#    - 根据实际情况修改组和项目配置
+#    - 设置 dry_run: true 先预览
+#    - 确认无误后设置 dry_run: false 正式执行
+#
+# 2. 权限级别选择:
+#    - Owner: 只给最高管理者
+#    - Maintainer: 给团队负责人、技术 Leader
+#    - Developer: 给普通开发人员
+#    - Reporter: 给 QA、产品经理等需要查看代码的人
+#    - Guest: 给只需要查看 issue 的人
+#
+# 3. 可见性级别选择:
+#    - Private: 敏感项目(支付、安全、核心业务)
+#    - Internal: 内部项目(工具、配置、文档)
+#    - Public: 开源项目(公共组件、文档)
+#
+# ============================================================================
