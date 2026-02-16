@@ -99,7 +99,7 @@ LOGGING_DIC = {
             'class': 'logging.handlers.RotatingFileHandler',
             'formatter': 'standard',
             'filename': ACCESS_LOGFILE,
-            # 200MB
+            # 日志文件一个200MB
             'maxBytes': 1024 * 1024 * 200,
             'backupCount': 10,
             'encoding': 'utf-8',
