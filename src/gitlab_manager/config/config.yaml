@@ -725,8 +725,6 @@ logging:
 #    - 复制本文件为 config.yaml
 #    - 修改 gitlab.url 和 gitlab.private_token
 #    - 根据实际情况修改组和项目配置
-#    - 设置 dry_run: true 先预览
-#    - 确认无误后设置 dry_run: false 正式执行
 #
 # 2. 权限级别选择:
 #    - Owner: 只给最高管理者
