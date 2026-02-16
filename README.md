@@ -100,3 +100,7 @@
 | 生产环境    | ❌ 不推荐 | Secret 管理工具          |
 
 
+## 关于环境变量
+```shell
+- APP_LOG_LEVEL: 项目的日志等级。通常分为：DEBUG、INFO、WARNING、ERROR、CRITICAL
+```
