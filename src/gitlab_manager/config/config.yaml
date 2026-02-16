@@ -12,7 +12,7 @@ global:
 default:
   gitlab:
     url: "your_gitlab_url"
-    token_env: "GITLAB_TOKEN_ENV"
+    private_token: "GITLAB_TOKEN_ENV"
     # e.g: https://git.xoo.xo/api/v4/groups/
     group_api: "your gitlab group api"
     # e.g: https://git.xoo.xo/api/v4/projects/
@@ -67,3 +67,4 @@ environments:
 logging:
   default_level: "INFO"
   default_log_file: "logs/gitlab_manager.log"
+  console: true
